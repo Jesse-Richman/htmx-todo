@@ -1,0 +1,134 @@
+package view
+
+import "jesse.richman/todo/model"
+import "fmt"
+import "strconv"
+
+templ BaseView() {
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<title>Todo App</title>
+			<script src="https://unpkg.com/htmx.org@1.9.6"></script>
+			<script src="https://cdn.tailwindcss.com"></script>
+			<!-- <link rel="stylesheet" href="./style.css"/> -->
+		</head>
+		<body class="max-w-screen-sm mx-auto bg-slate-200">
+			<header></header>
+			<h1 class="text-8xl text-center text-red-700 mt-10">todos</h1>
+			<main class="text-lg">
+				{ children... }
+			</main>
+			<footer class="pt-10 text-sm text-center">
+				Powered by <a href="https://htmx.org/">HTMX</a> and <a href="https://golang.org/">Go</a>
+			</footer>
+		</body>
+	</html>
+}
+
+templ Main(todos []model.Todo) {
+	@BaseView() {
+		<div class="bg-white shadow-2xl text-2xl">
+			@MainInput()
+			@Table(todos)
+			@Metrics(len(todos))
+		</div>
+	}
+}
+
+templ MainInput() {
+	<div>
+		<input
+			id="search"
+			name="description"
+			placeholder="What needs to be done?"
+			hx-post="/todo"
+			hx-target="#todo-list"
+			hx-swap="afterbegin"
+			hx-trigger="keyup[keyCode==13]"
+			class="w-full p-2"
+            autofocus
+		/>
+	</div>
+}
+
+templ Table(todos []model.Todo) {
+	<ul id="todo-list">
+		for _, todo := range todos {
+			@ViewTodo(todo)
+		}
+	</ul>
+}
+
+func getTodoPath(id string) string {
+	return fmt.Sprintf("/todo/%s", id)
+}
+
+templ ViewTodo(todo model.Todo) {
+	<li class="flex justify-between items-center p-2 border shadow-inner text-gray-700">
+		<input
+            name="done"
+			type="checkbox"
+            class="w-5 h-5"
+			hx-patch={ "/todo/" + todo.ID}
+            hx-target="closest li"
+            hx-swap="outerHTML"
+			if todo.Done {
+				checked
+			}
+		/>
+
+		<span hx-get={ "/todo/" + todo.ID + "?editMode=true"} 
+            hx-swap="outerHTML"
+            hx-trigger="click" 
+            if todo.Done {
+                class="line-through text-gray-400"
+            }>
+            { todo.Description }
+        </span>
+
+        <button 
+            hx-delete={ "/todo/" + todo.ID } 
+            hx-target="closest li"
+            hx-swap="delete"
+            class="text-red-700 hover:text-red-900">
+            X
+        </button>
+	</li>
+}
+
+templ EditTodo(todo model.Todo) {
+    <input value={todo.Description}
+			name="description"
+			hx-post="/todo"
+			hx-target="closest li"
+			hx-swap="outerHTML"
+			hx-trigger="keyup[keyCode==13]"
+			class="w-full p-1"
+            autofocus
+    />
+}
+
+templ Metrics(count int) {
+	<div id="metrics" class="flex justify-between text-sm p-1 items-center">
+		<span id="remainingCount" 
+            hx-get="/todo/metrics" 
+            hx-target="#metrics"
+            hx-swap="outerHTML"
+            hx-trigger="editTodo from:body">
+            {strconv.Itoa(count)} left!
+        </span>
+		<span class="flex space-x-3">
+            <a hx-get="/filter/all" hx-target="#todo-list" hx-swap="outerHTML" class="border border-red-700 p-1">All</a>
+            <a hx-get="/filter/active" hx-target="#todo-list" hx-swap="outerHTML" class="p-1 border border-white hover:border hover:border-red-700">Active</a>
+            <a hx-get="/filter/complete" hx-target="#todo-list" hx-swap="outerHTML" class="p-1 border border-white hover:border hover:border-red-700">Complete</a>
+        </span>
+		<span class="hover:underline">
+            <button hx-delete="/todo/clear" 
+                hx-target="#todo-list" 
+                hx-swap="outerHTML">
+                Clear completed
+            </button>
+        </span>
+	</div>
+}
