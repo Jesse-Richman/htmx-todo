@@ -1,8 +1,17 @@
 package view
 
 import "jesse.richman/todo/model"
-import "fmt"
 import "strconv"
+
+func getVisibleCount(todos []model.Todo) int {
+    var count int
+    for _,todo := range todos {
+        if !todo.Done {
+            count++
+        }
+    }
+    return count
+}
 
 templ BaseView() {
 	<html lang="en">
@@ -11,7 +20,6 @@ templ BaseView() {
 			<title>Todo App</title>
 			<script src="https://unpkg.com/htmx.org@1.9.6"></script>
 			<script src="https://cdn.tailwindcss.com"></script>
-			<!-- <link rel="stylesheet" href="./style.css"/> -->
 		</head>
 		<body class="max-w-screen-sm mx-auto bg-slate-200">
 			<header></header>
@@ -21,6 +29,12 @@ templ BaseView() {
 			</main>
 			<footer class="pt-10 text-sm text-center">
 				Powered by <a href="https://htmx.org/">HTMX</a> and <a href="https://golang.org/">Go</a>
+                <script>
+                    // Clears the new-todo-input after posting the request
+                    htmx.on('#new-todo-input', 'htmx:afterRequest', function (event) {
+                        event.detail.elt.value = '';
+                    });
+                </script>
 			</footer>
 		</body>
 	</html>
@@ -29,17 +43,17 @@ templ BaseView() {
 templ Main(todos []model.Todo) {
 	@BaseView() {
 		<div class="bg-white shadow-2xl text-2xl">
-			@MainInput()
-			@Table(todos)
-			@Metrics(len(todos))
+			@NewTodoInput()
+			@List(todos)
+			@Metrics(getVisibleCount(todos), len(todos))
 		</div>
 	}
 }
 
-templ MainInput() {
+templ NewTodoInput() {
 	<div>
 		<input
-			id="search"
+			id="new-todo-input"
 			name="description"
 			placeholder="What needs to be done?"
 			hx-post="/todo"
@@ -52,16 +66,12 @@ templ MainInput() {
 	</div>
 }
 
-templ Table(todos []model.Todo) {
+templ List(todos []model.Todo) {
 	<ul id="todo-list">
 		for _, todo := range todos {
 			@ViewTodo(todo)
 		}
 	</ul>
-}
-
-func getTodoPath(id string) string {
-	return fmt.Sprintf("/todo/%s", id)
 }
 
 templ ViewTodo(todo model.Todo) {
@@ -78,14 +88,12 @@ templ ViewTodo(todo model.Todo) {
 			}
 		/>
 
-		<span hx-get={ "/todo/" + todo.ID + "?editMode=true"} 
+		<label class={"w-full pl-3", templ.KV("line-through text-gray-400", todo.Done)}
+            hx-get={ "/todo/" + todo.ID + "?editMode=true"}
             hx-swap="outerHTML"
-            hx-trigger="click" 
-            if todo.Done {
-                class="line-through text-gray-400"
-            }>
+            hx-trigger="click">
             { todo.Description }
-        </span>
+        </label>
 
         <button 
             hx-delete={ "/todo/" + todo.ID } 
@@ -109,22 +117,24 @@ templ EditTodo(todo model.Todo) {
     />
 }
 
-templ Metrics(count int) {
-	<div id="metrics" class="flex justify-between text-sm p-1 items-center">
+templ Metrics(count int, total int) {
+	<div id="metrics" class={"flex flex-row items-center text-sm p-1 items-center", templ.KV("hidden", total < 1)}>
 		<span id="remainingCount" 
+            class="basis-1/4"
             hx-get="/todo/metrics" 
             hx-target="#metrics"
             hx-swap="outerHTML"
             hx-trigger="editTodo from:body">
             {strconv.Itoa(count)} left!
         </span>
-		<span class="flex space-x-3">
-            <a hx-get="/filter/all" hx-target="#todo-list" hx-swap="outerHTML" class="border border-red-700 p-1">All</a>
-            <a hx-get="/filter/active" hx-target="#todo-list" hx-swap="outerHTML" class="p-1 border border-white hover:border hover:border-red-700">Active</a>
-            <a hx-get="/filter/complete" hx-target="#todo-list" hx-swap="outerHTML" class="p-1 border border-white hover:border hover:border-red-700">Complete</a>
+		<span class="flex basis-1/2 justify-center space-x-3">
+            <a hx-get="/filter/all" hx-target="#todo-list" hx-swap="outerHTML" class="p-1 hover:underline">All</a>
+            <a hx-get="/filter/active" hx-target="#todo-list" hx-swap="outerHTML" class="p-1 hover:underline">Active</a>
+            <a hx-get="/filter/complete" hx-target="#todo-list" hx-swap="outerHTML" class="p-1 hover:underline">Complete</a>
         </span>
-		<span class="hover:underline">
-            <button hx-delete="/todo/clear" 
+		<span class="basis-1/4 text-right">
+            <button class="hover:underline"
+                hx-delete="/todo/clear"
                 hx-target="#todo-list" 
                 hx-swap="outerHTML">
                 Clear completed

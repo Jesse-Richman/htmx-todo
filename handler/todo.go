@@ -13,19 +13,19 @@ type TodoHandler struct {
 	DB *model.DB
 }
 
+// Returns the main todo view.
 func (h TodoHandler) Main(c echo.Context) error {
 	return render(c, view.Main(h.DB.GetTodos()))
 }
 
-func (h TodoHandler) Table(c echo.Context) error {
-    // filter := c.QueryParam("filter")
-    // parts := strings.Split(c.Path(), "/")
+// Return list view of todos and possibly filter based on request path.
+func (h TodoHandler) List(c echo.Context) error {
     parts := strings.Split(c.Request().URL.Path, "/")
     filter := parts[len(parts)-1]
     log.Infof("filtering with %s", filter)
     var todos []model.Todo
 
-    if filter != "" {
+    if filter != "all" {
         state := false
         if filter == "complete" {
             state = true
@@ -35,8 +35,10 @@ func (h TodoHandler) Table(c echo.Context) error {
         todos = h.DB.GetTodos()
     }
 
-	return render(c, view.Table(todos))
+	return render(c, view.List(todos))
 }
+
+// Create a new todo and add it to the DB. Return todo view.
 func (h TodoHandler) Create(c echo.Context) error {
 	desc := c.FormValue("description")
     todo := h.DB.SaveTodo(desc)
@@ -44,6 +46,7 @@ func (h TodoHandler) Create(c echo.Context) error {
 	return render(c, view.ViewTodo(todo))
 }
 
+// Delete todo from the DB and return nil
 func (h TodoHandler) Delete(c echo.Context) error {
 	id := c.Param("id")
     h.DB.DeleteTodo(id)
@@ -51,6 +54,7 @@ func (h TodoHandler) Delete(c echo.Context) error {
 	return nil
 }
 
+// Update todo's description and/or done state. Return todo view.
 func (h TodoHandler) Update(c echo.Context) error {
 	id := c.Param("id")
     doneStr := c.FormValue("done")
@@ -76,10 +80,13 @@ func (h TodoHandler) Update(c echo.Context) error {
 	return render(c, view.ViewTodo(todo))
 }
 
+// Get todo by param id and render either the normal or edit view based on
+// the 'editMode' query param.
 func (h TodoHandler) GetTodo(c echo.Context) error {
 	id := c.Param("id")
     editMode := c.QueryParams().Has("editMode")
     todo := h.DB.GetTodo(id)
+
     if editMode {
         return render(c, view.EditTodo(todo))
     } else {
@@ -87,23 +94,20 @@ func (h TodoHandler) GetTodo(c echo.Context) error {
     }
 }
 
+// Get the remaining and total todos and return metrics view
 func (h TodoHandler) Metrics(c echo.Context) error {
-    var count int
-    for _, todo := range h.DB.GetTodos() {
-        if !todo.Done {
-            count++
-        }
-    }
-    return render(c, view.Metrics(count))
+    remaining := len(h.DB.GetTodosByDone(false))
+    total := len(h.DB.GetTodos())
+    return render(c, view.Metrics(remaining, total))
 }
 
+// Clear all completed todos from DB and return list view
 func (h TodoHandler) Clear(c echo.Context) error {
-    todos := h.DB.GetTodos()
-    for _,todo := range todos {
+    for _,todo := range h.DB.GetTodos() {
         if todo.Done {
             h.DB.DeleteTodo(todo.ID)
         }
     }
-    return render(c, view.Table(h.DB.GetTodos()))
+    return render(c, view.List(h.DB.GetTodos()))
 }
 

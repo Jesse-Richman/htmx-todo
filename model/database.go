@@ -13,7 +13,7 @@ type DB struct {
 
 func (db *DB) InitTestData() {
     db.todos = []Todo {
-        {ID: uuid.NewString(), Description: "program more", Done: false},
+        {ID: uuid.NewString(), Description: "learn htmx", Done: false},
         {ID: uuid.NewString(), Description: "finish this", Done: false},
     }
 }
@@ -70,7 +70,7 @@ func (db DB) GetTodosByDone(isDone bool) []Todo {
             todos = append(todos, todo)
         }
     }
-    return db.todos
+    return todos
 }
 
 
