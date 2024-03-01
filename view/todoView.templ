@@ -108,7 +108,7 @@ templ ViewTodo(todo model.Todo) {
 templ EditTodo(todo model.Todo) {
     <input value={todo.Description}
 			name="description"
-			hx-post="/todo"
+			hx-patch={"/todo/" + todo.ID}
 			hx-target="closest li"
 			hx-swap="outerHTML"
 			hx-trigger="keyup[keyCode==13]"

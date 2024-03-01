@@ -68,10 +68,10 @@ func (h TodoHandler) Update(c echo.Context) error {
     }
 
     var done bool
-    if doneStr == "on" {
+    if doneStr == "on" || doneStr == "true" {
         done = true
     } else {
-        done = !todo.Done
+        done = false
     }
 
     todo = h.DB.UpdateTodo(id, desc, done)
